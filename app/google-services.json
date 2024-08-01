@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "949263846967",
+    "project_id": "my-application-bb250",
+    "storage_bucket": "my-application-bb250.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:949263846967:android:d15b630c6b012909daf9b2",
+        "android_client_info": {
+          "package_name": "com.sydney.sydney"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCb-Ub5qmhcEKWVH_lUAqVUKjcciA6Cn8Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
