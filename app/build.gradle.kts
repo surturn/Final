@@ -18,12 +18,12 @@ fun signingValue(key: String, env: String): String? =
 
 android {
     namespace = "com.sydney.sydney"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.sydney.sydney"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
 
