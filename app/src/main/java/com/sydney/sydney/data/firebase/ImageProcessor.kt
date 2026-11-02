@@ -23,8 +23,12 @@ class ImageProcessor(private val context: Context) {
         val resolver = context.contentResolver
 
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-            ?: throw AppException("Could not read the selected image")
+        // A bounds-only decode returns null by design and fills [bounds] instead, so the null check
+        // is on the stream, not on the decode result.
+        resolver.openInputStream(uri)?.use {
+            BitmapFactory.decodeStream(it, null, bounds)
+            true
+        } ?: throw AppException("Could not read the selected image")
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
             throw AppException("The selected file is not a valid image")
         }
