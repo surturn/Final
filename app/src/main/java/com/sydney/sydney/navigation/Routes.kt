@@ -1,30 +1,16 @@
 package com.sydney.sydney.navigation
 
-const val ROUTE_LOGIN = "login"
-const val ROUTE_HOME = "home"
-const val ROUTE_ABOUT = "about"
-const val ROUTE_ADD_STUDENTS = "add_students"
 const val ROUTE_SPLASH = "splash"
-const val ROUTE_VIEW_STUDENTS = "show_students"
-const val ROUTE_SEARCH = "search"
+const val ROUTE_HOME = "home"
+const val ROUTE_LOGIN = "login"
 const val ROUTE_REGISTER = "register"
-const val ROUTE_DASHBOARD = "dashboard"
-const val ROUTE_ADD_HOSTELS = "add_hostels"
-const val ROUTE_VIEW_HOSTELS = "hostels"
+const val ROUTE_HOSTELS = "hostels"
+const val ROUTE_HOSTEL = "hostel"
+const val ROUTE_ADD_HOSTEL = "add_hostel"
+const val ROUTE_STUDENTS = "students"
 const val ROUTE_PROFILE = "profile"
 
+const val ARG_HOSTEL_ID = "hostelId"
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/** Screens that need a signed-in user. Leaving the session on one of these returns to login. */
+val SIGNED_IN_ROUTES = setOf(ROUTE_STUDENTS, ROUTE_PROFILE, ROUTE_ADD_HOSTEL)

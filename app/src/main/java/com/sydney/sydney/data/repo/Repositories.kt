@@ -6,12 +6,11 @@ import com.sydney.sydney.data.model.StudentEntry
 import com.sydney.sydney.data.model.UserProfile
 import kotlinx.coroutines.flow.Flow
 
-/** An error whose message is safe to show to the user as is. */
-class AppException(message: String, cause: Throwable? = null) : Exception(message, cause)
-
 interface AuthRepository {
     /** The signed-in user's uid, or null when signed out. */
     val currentUserId: String?
+
+    val currentEmail: String?
 
     /** Emits the current uid (or null) now and again on every sign in or sign out. */
     val authState: Flow<String?>
@@ -31,6 +30,9 @@ interface ProfileRepository {
 
     /** Saves edits to the profile and directory entry, uploading [photoUri] when given. */
     suspend fun update(profile: UserProfile, photoUri: String?): Result<Unit>
+
+    /** The signed-in user's own directory photo URL, or empty when none is set. */
+    suspend fun photoUrl(uid: String): Result<String>
 
     /** Moves landlordStatus from none to pending. An admin approves it from the console. */
     suspend fun applyForLandlord(uid: String): Result<Unit>

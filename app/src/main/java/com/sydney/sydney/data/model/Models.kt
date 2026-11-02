@@ -41,6 +41,7 @@ data class Hostel(
     val description: String,
     val priceKes: Long,
     val location: String = "",
+    val contactPhone: String = "",
     val imageUrl: String = "",
     val ownerId: String = "",
     val createdAt: Long = 0L,
@@ -52,5 +53,6 @@ data class NewHostel(
     val description: String,
     val priceKes: Long,
     val location: String,
+    val contactPhone: String,
     val imageUri: String,
 )

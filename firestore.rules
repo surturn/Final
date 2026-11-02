@@ -94,15 +94,16 @@ service cloud.firestore {
 
       allow create: if isApprovedLandlord()
         && request.resource.data.keys().hasOnly(
-             ['name', 'description', 'priceKes', 'location', 'imageUrl', 'ownerId', 'createdAt'])
+             ['name', 'description', 'priceKes', 'location', 'contactPhone', 'imageUrl', 'ownerId', 'createdAt'])
         && request.resource.data.keys().hasAll(
-             ['name', 'description', 'priceKes', 'imageUrl', 'ownerId', 'createdAt'])
+             ['name', 'description', 'priceKes', 'contactPhone', 'imageUrl', 'ownerId', 'createdAt'])
         && request.resource.data.ownerId == request.auth.uid
         && text(request.resource.data.name, 2, 100)
         && text(request.resource.data.description, 10, 2000)
         && request.resource.data.priceKes is number
         && request.resource.data.priceKes > 0
         && request.resource.data.priceKes <= 1000000
+        && text(request.resource.data.contactPhone, 10, 13)
         && text(request.resource.data.imageUrl, 1, 2048)
         && optionalText(request.resource.data, 'location', 120);
 
@@ -111,12 +112,13 @@ service cloud.firestore {
         && request.resource.data.ownerId == resource.data.ownerId
         && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.keys().hasOnly(
-             ['name', 'description', 'priceKes', 'location', 'imageUrl', 'ownerId', 'createdAt'])
+             ['name', 'description', 'priceKes', 'location', 'contactPhone', 'imageUrl', 'ownerId', 'createdAt'])
         && text(request.resource.data.name, 2, 100)
         && text(request.resource.data.description, 10, 2000)
         && request.resource.data.priceKes is number
         && request.resource.data.priceKes > 0
         && request.resource.data.priceKes <= 1000000
+        && text(request.resource.data.contactPhone, 10, 13)
         && text(request.resource.data.imageUrl, 1, 2048)
         && optionalText(request.resource.data, 'location', 120);
 

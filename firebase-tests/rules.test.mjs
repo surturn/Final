@@ -44,6 +44,7 @@ function hostel(ownerId, overrides = {}) {
     name: "Sunrise Hostel",
     description: "Single rooms close to the campus gate with water and wifi.",
     priceKes: 6500,
+    contactPhone: "0712345678",
     imageUrl: "https://example.com/h.jpg",
     ownerId,
     createdAt: 1,
@@ -146,6 +147,13 @@ describe("hostels", () => {
     await assertFails(setDoc(doc(db, "hostels/h7"), hostel("landlord", { priceKes: -5 })));
     await assertFails(setDoc(doc(db, "hostels/h8"), hostel("landlord", { priceKes: "6500" })));
     await assertFails(setDoc(doc(db, "hostels/h9"), hostel("landlord", { description: "short" })));
+  });
+
+  it("requires a contact phone so students can reach the landlord", async () => {
+    const db = as("landlord").firestore();
+    const { contactPhone, ...withoutPhone } = hostel("landlord");
+    await assertFails(setDoc(doc(db, "hostels/h10"), withoutPhone));
+    await assertFails(setDoc(doc(db, "hostels/h11"), hostel("landlord", { contactPhone: "123" })));
   });
 
   it("can only be edited and deleted by its owner", async () => {

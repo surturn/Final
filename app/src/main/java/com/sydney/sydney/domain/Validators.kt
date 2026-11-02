@@ -1,5 +1,7 @@
 package com.sydney.sydney.domain
 
+import java.util.Locale
+
 /**
  * Input checks shared by the screens. Every function returns an error message to show next to
  * the field, or null when the value is acceptable. Pure Kotlin so it is covered by unit tests.
@@ -7,8 +9,8 @@ package com.sydney.sydney.domain
 object Validators {
     private val emailPattern = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
 
-    // Kenyan mobile numbers: 07xx xxx xxx, 01xx xxx xxx, +2547.. or +2541..
-    private val phonePattern = Regex("^(\\+254|0)[17][0-9]{8}$")
+    // Kenyan mobile numbers: 07xx xxx xxx, 01xx xxx xxx, +2547.., +2541.. or 2547..
+    private val phonePattern = Regex("^(\\+?254|0)[17][0-9]{8}$")
 
     const val MIN_PASSWORD_LENGTH = 8
     const val MAX_PRICE_KES = 1_000_000L
@@ -42,8 +44,22 @@ object Validators {
 
     /** Phone is optional, but when given it must be a Kenyan mobile number. */
     fun phone(value: String): String? =
-        if (value.isBlank() || phonePattern.matches(value.trim().replace(" ", ""))) null
+        if (value.isBlank() || phonePattern.matches(normalizePhone(value))) null
         else "Use a Kenyan number like 0712345678"
+
+    /** Same check as [phone] but the number is required (a landlord's contact line). */
+    fun requiredPhone(value: String): String? =
+        if (value.isBlank()) "A contact phone number is required" else phone(value)
+
+    /** Strips spaces and dashes so the stored value matches what the security rules measure. */
+    fun normalizePhone(value: String): String =
+        value.trim().replace(" ", "").replace("-", "")
+
+    fun campus(value: String): String? =
+        if (value.trim().length > 80) "Campus name is too long" else null
+
+    fun location(value: String): String? =
+        if (value.trim().length > 120) "Location is too long" else null
 
     fun hostelName(value: String): String? = when {
         value.isBlank() -> "Hostel name is required"
@@ -70,5 +86,6 @@ object Validators {
     fun price(value: String): String? =
         if (parsePrice(value) != null) null else "Enter a monthly price between 1 and 1,000,000"
 
-    fun formatPrice(priceKes: Long): String = "KES %,d / month".format(priceKes)
+    fun formatPrice(priceKes: Long): String =
+        String.format(Locale.US, "KES %,d / month", priceKes)
 }
