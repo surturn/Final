@@ -143,16 +143,6 @@ fun HomeScreen(actions: HomeActions) {
             }
 
             if (signedIn) {
-                if (state.profileIncomplete) {
-                    item {
-                        MenuCard(
-                            Icons.Default.AccountCircle,
-                            "Complete your profile",
-                            "Add your campus, phone and area so landlords and students can reach you",
-                            actions.onProfile,
-                        )
-                    }
-                }
                 item {
                     MenuCard(Icons.Default.Favorite, "Saved hostels", "Hostels you have hearted", actions.onSaved)
                 }
@@ -163,7 +153,11 @@ fun HomeScreen(actions: HomeActions) {
                     MenuCard(Icons.Default.Person, "Student directory", "Find other students", actions.onStudents)
                 }
                 item {
-                    val subtitle = if (state.loading || profile != null) "Update your details and photo" else "Finish setting up your profile"
+                    val subtitle = when {
+                        state.profileIncomplete -> "Add your campus, phone and area so others can reach you"
+                        state.loading || profile != null -> "Update your details and photo"
+                        else -> "Finish setting up your profile"
+                    }
                     MenuCard(Icons.Default.AccountCircle, "My profile", subtitle, actions.onProfile)
                 }
                 if (profile != null) {
