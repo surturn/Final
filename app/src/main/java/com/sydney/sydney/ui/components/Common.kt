@@ -11,10 +11,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.TextButton
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -24,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +49,10 @@ fun ColFindTopBar(
             }
         },
         actions = actions,
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.background,
+            scrolledContainerColor = MaterialTheme.colorScheme.background,
+        ),
     )
 }
 
@@ -107,7 +108,7 @@ fun MessageBox(
     ) {
         Text(message, textAlign = TextAlign.Center, style = MaterialTheme.typography.bodyLarge)
         if (actionLabel != null && onAction != null) {
-            Button(onClick = onAction, modifier = Modifier.padding(top = 16.dp)) { Text(actionLabel) }
+            PrimaryButton(onClick = onAction, modifier = Modifier.padding(top = 16.dp)) { Text(actionLabel) }
         }
     }
 }
@@ -136,11 +137,11 @@ fun SignInPromptDialog(
         onDismissRequest = onDismiss,
         title = { Text("Sign in to continue") },
         text = { Text(message) },
-        confirmButton = { Button(onClick = { onDismiss(); onLogin() }) { Text("Log in") } },
+        confirmButton = { PrimaryButton(onClick = { onDismiss(); onLogin() }) { Text("Log in") } },
         dismissButton = {
             Row {
-                TextButton(onClick = onDismiss) { Text("Not now") }
-                TextButton(onClick = { onDismiss(); onRegister() }) { Text("Register") }
+                QuietButton(onClick = onDismiss) { Text("Not now") }
+                QuietButton(onClick = { onDismiss(); onRegister() }) { Text("Register") }
             }
         },
     )
@@ -149,16 +150,16 @@ fun SignInPromptDialog(
 /** A slim, non-blocking nudge at the top of a list for guests. */
 @Composable
 fun GuestBanner(message: String, onLogin: () -> Unit, modifier: Modifier = Modifier) {
-    Card(
+    SurfaceCard(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        container = MaterialTheme.colorScheme.secondaryContainer,
     ) {
         Row(
             modifier = Modifier.padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(message, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-            TextButton(onClick = onLogin) { Text("Log in") }
+            QuietButton(onClick = onLogin) { Text("Log in") }
         }
     }
 }

@@ -1,5 +1,7 @@
 package com.sydney.sydney.ui.auth
 
+import com.sydney.sydney.ui.components.QuietButton
+import com.sydney.sydney.ui.components.PrimaryButton
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,13 +15,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -80,7 +80,7 @@ fun LoginScreen(onBack: () -> Unit, onRegister: () -> Unit, onSuccess: () -> Uni
             )
             ErrorText(state.error)
             SubmitButton(text = "Log in", loading = state.loading, onClick = viewModel::submit)
-            TextButton(onClick = onRegister, enabled = !state.loading) { Text("New here? Create an account") }
+            QuietButton(onClick = onRegister, enabled = !state.loading) { Text("New here? Create an account") }
         }
     }
 }
@@ -157,7 +157,7 @@ fun RegisterScreen(onBack: () -> Unit, onLogin: () -> Unit, onSuccess: () -> Uni
             }
             ErrorText(state.error)
             SubmitButton(text = "Create account", loading = state.loading, onClick = viewModel::submit)
-            TextButton(onClick = onLogin, enabled = !state.loading) { Text("Already have an account? Log in") }
+            QuietButton(onClick = onLogin, enabled = !state.loading) { Text("Already have an account? Log in") }
         }
     }
 }
@@ -177,7 +177,7 @@ private fun Logo() {
 
 @Composable
 private fun SubmitButton(text: String, loading: Boolean, onClick: () -> Unit) {
-    Button(onClick = onClick, enabled = !loading, modifier = Modifier.fillMaxWidth()) {
+    PrimaryButton(onClick = onClick, enabled = !loading, modifier = Modifier.fillMaxWidth()) {
         if (loading) {
             CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
         } else {

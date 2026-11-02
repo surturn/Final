@@ -1,5 +1,8 @@
 package com.sydney.sydney.ui.profile
 
+import com.sydney.sydney.ui.components.QuietButton
+import com.sydney.sydney.ui.components.SecondaryButton
+import com.sydney.sydney.ui.components.PrimaryButton
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,10 +17,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -29,7 +30,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -97,7 +97,7 @@ fun ProfileScreen(onBack: () -> Unit, onDeleted: () -> Unit) {
                     .size(120.dp)
                     .clip(CircleShape),
             )
-            OutlinedButton(
+            SecondaryButton(
                 onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                 enabled = !state.saving,
             ) { Text(if (state.photoUrl.isEmpty() && state.newPhotoUri == null) "Add a photo" else "Change photo") }
@@ -124,13 +124,13 @@ fun ProfileScreen(onBack: () -> Unit, onDeleted: () -> Unit) {
                 enabled = !state.saving,
             )
             ErrorText(state.error)
-            Button(onClick = viewModel::save, enabled = !state.saving, modifier = Modifier.fillMaxWidth()) {
+            PrimaryButton(onClick = viewModel::save, enabled = !state.saving, modifier = Modifier.fillMaxWidth()) {
                 if (state.saving) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Text("Save")
             }
 
             if (state.exists) {
                 when (state.status) {
-                    LandlordStatus.NONE -> OutlinedButton(
+                    LandlordStatus.NONE -> SecondaryButton(
                         onClick = viewModel::applyForLandlord,
                         enabled = !state.applying,
                         modifier = Modifier.fillMaxWidth(),
@@ -141,7 +141,7 @@ fun ProfileScreen(onBack: () -> Unit, onDeleted: () -> Unit) {
                 }
             }
 
-            TextButton(onClick = { confirmDelete = true }, enabled = !state.saving && !state.deleting) {
+            QuietButton(onClick = { confirmDelete = true }, enabled = !state.saving && !state.deleting) {
                 Text("Delete my account", color = MaterialTheme.colorScheme.error)
             }
         }
@@ -167,13 +167,13 @@ fun ProfileScreen(onBack: () -> Unit, onDeleted: () -> Unit) {
                 }
             },
             confirmButton = {
-                TextButton(onClick = { viewModel.deleteAccount(deletePassword) }, enabled = !state.deleting) {
+                QuietButton(onClick = { viewModel.deleteAccount(deletePassword) }, enabled = !state.deleting) {
                     if (state.deleting) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                     else Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDelete = false }, enabled = !state.deleting) { Text("Cancel") }
+                QuietButton(onClick = { confirmDelete = false }, enabled = !state.deleting) { Text("Cancel") }
             },
         )
     }

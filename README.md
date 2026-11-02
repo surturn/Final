@@ -50,3 +50,9 @@ GitHub Actions runs all of the above on every push. See `.github/workflows/andro
 ## Releasing
 
 See [docs/RELEASING.md](docs/RELEASING.md) for signing, the Play Store checklist and rollback triggers.
+
+## Design credits
+
+- Fonts: Newsreader (headings) and Geist (interface text), both under the SIL Open Font License 1.1, bundled in `app/src/main/res/font`.
+- Colour: three sets split 60 / 30 / 10 (canvas, ink and surfaces, emerald accent). Tokens live in `ui/theme/Color.kt`.
+- Interaction patterns (press feedback, heart toggle, card skeleton) were chosen from free 21st.dev examples and rebuilt natively in Compose in `ui/components/Interactive.kt`.

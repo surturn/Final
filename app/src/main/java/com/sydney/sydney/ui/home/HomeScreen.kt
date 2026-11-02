@@ -1,5 +1,14 @@
 package com.sydney.sydney.ui.home
 
+import com.sydney.sydney.ui.components.ColFindTopBar
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
+import com.sydney.sydney.ui.components.SurfaceCard
+import com.sydney.sydney.ui.components.PressableCard
+import com.sydney.sydney.ui.components.QuietButton
+import com.sydney.sydney.ui.components.SecondaryButton
+import com.sydney.sydney.ui.components.PrimaryButton
 import com.sydney.sydney.ui.components.RemoteImage
 import com.sydney.sydney.domain.Validators
 import com.sydney.sydney.data.model.Hostel
@@ -28,17 +37,12 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -91,14 +95,16 @@ fun HomeScreen(actions: HomeActions) {
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text(stringResource(R.string.app_name)) })
+            ColFindTopBar(stringResource(R.string.app_name))
         },
     ) { padding ->
         LazyColumn(
             modifier = Modifier.padding(padding),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                start = 20.dp, end = 20.dp, top = 8.dp, bottom = 32.dp,
+            ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            horizontalAlignment = Alignment.Start,
         ) {
             item {
                 Image(
@@ -106,21 +112,28 @@ fun HomeScreen(actions: HomeActions) {
                     contentDescription = "ColFind logo",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .size(140.dp)
-                        .clip(RoundedCornerShape(20.dp)),
+                        .size(56.dp)
+                        .clip(MaterialTheme.shapes.medium),
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(20.dp))
                 Text(
                     text = if (profile != null) "Hi, ${profile.displayName}" else "Find a hostel near your campus",
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.headlineMedium,
                 )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = if (profile != null) "Pick up where you left off." else "Real listings, real prices, one call away.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
             }
 
             if (!signedIn) {
                 item {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                        Button(onClick = actions.onLogin, modifier = Modifier.weight(1f)) { Text("Log in") }
-                        OutlinedButton(onClick = actions.onRegister, modifier = Modifier.weight(1f)) { Text("Register") }
+                        PrimaryButton(onClick = actions.onLogin, modifier = Modifier.weight(1f)) { Text("Log in") }
+                        SecondaryButton(onClick = actions.onRegister, modifier = Modifier.weight(1f)) { Text("Register") }
                     }
                 }
             }
@@ -157,7 +170,7 @@ fun HomeScreen(actions: HomeActions) {
                     item { LandlordCard(profile.landlordStatus, state.applying, viewModel::applyForLandlord, actions.onAddHostel) }
                 }
                 item { ErrorText(state.error) }
-                item { TextButton(onClick = viewModel::signOut) { Text("Sign out") } }
+                item { QuietButton(onClick = viewModel::signOut) { Text("Sign out") } }
             }
 
             if (state.loading && signedIn) {
@@ -165,7 +178,7 @@ fun HomeScreen(actions: HomeActions) {
             }
 
             item {
-                TextButton(onClick = { dial(context, supportPhone) }) { Text("Need help? Call support") }
+                QuietButton(onClick = { dial(context, supportPhone) }) { Text("Need help? Call support") }
             }
         }
     }
@@ -178,7 +191,7 @@ private fun RecentRow(recent: List<Hostel>, onOpen: (String) -> Unit) {
         Text("Recently viewed", style = MaterialTheme.typography.titleMedium)
         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             items(recent, key = { it.id }) { hostel ->
-                Card(onClick = { onOpen(hostel.id) }, modifier = Modifier.width(160.dp)) {
+                PressableCard(onClick = { onOpen(hostel.id) }, modifier = Modifier.width(160.dp)) {
                     Column {
                         RemoteImage(
                             url = hostel.imageUrl,
@@ -192,7 +205,7 @@ private fun RecentRow(recent: List<Hostel>, onOpen: (String) -> Unit) {
                             Text(
                                 Validators.formatPrice(hostel.priceKes),
                                 style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
+                                color = MaterialTheme.colorScheme.tertiary,
                             )
                         }
                     }
@@ -212,11 +225,11 @@ private fun LandlordCard(
     when (status) {
         LandlordStatus.APPROVED ->
             MenuCard(Icons.Default.Add, "Add a hostel", "List a new hostel for students", onAddHostel)
-        LandlordStatus.NONE -> Card(modifier = Modifier.fillMaxWidth()) {
+        LandlordStatus.NONE -> SurfaceCard(modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Own a hostel?", style = MaterialTheme.typography.titleMedium)
                 Text("Ask to become a landlord. Once approved you can list hostels.", style = MaterialTheme.typography.bodyMedium)
-                OutlinedButton(onClick = onApply, enabled = !applying) { Text("Apply as a landlord") }
+                SecondaryButton(onClick = onApply, enabled = !applying) { Text("Apply as a landlord") }
             }
         }
         LandlordStatus.PENDING -> StatusCard("Your landlord request is waiting for approval")
@@ -226,28 +239,40 @@ private fun LandlordCard(
 
 @Composable
 private fun StatusCard(text: String) {
-    Card(
+    SurfaceCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        container = MaterialTheme.colorScheme.secondaryContainer,
     ) {
         Text(text, modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium)
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MenuCard(icon: ImageVector, title: String, subtitle: String, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+    PressableCard(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
-            Column {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(subtitle, style = MaterialTheme.typography.bodyMedium)
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(MaterialTheme.shapes.small)
+                    .background(MaterialTheme.colorScheme.tertiaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(22.dp))
             }
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

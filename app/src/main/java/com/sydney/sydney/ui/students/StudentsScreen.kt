@@ -1,5 +1,6 @@
 package com.sydney.sydney.ui.students
 
+import com.sydney.sydney.ui.components.SurfaceCard
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -14,7 +15,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -78,7 +78,7 @@ fun StudentsScreen(onBack: () -> Unit) {
 
 @Composable
 private fun StudentCard(student: StudentEntry) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    SurfaceCard(modifier = Modifier.fillMaxWidth()) {
         Column {
             RemoteImage(
                 url = student.photoUrl,

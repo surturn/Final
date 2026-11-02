@@ -1,5 +1,11 @@
 package com.sydney.sydney.ui.hostels
 
+import com.sydney.sydney.ui.components.entrance
+import com.sydney.sydney.ui.components.HostelListSkeleton
+import com.sydney.sydney.ui.components.HeartToggle
+import com.sydney.sydney.ui.components.PressableCard
+import com.sydney.sydney.ui.components.SecondaryButton
+import com.sydney.sydney.ui.components.PrimaryButton
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -13,22 +19,16 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -104,7 +104,7 @@ fun HostelListScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
             )
             when {
-                state.loading -> LoadingBox()
+                state.loading -> HostelListSkeleton()
                 state.error != null -> MessageBox(state.error.orEmpty(), actionLabel = "Try again", onAction = viewModel::retry)
                 state.hostels.isEmpty() -> MessageBox(
                     if (state.total == 0) "No hostels have been listed yet" else "No hostels match your search",
@@ -113,11 +113,12 @@ fun HostelListScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(state.hostels, key = { it.id }) { hostel ->
+                    itemsIndexed(state.hostels, key = { _, it -> it.id }) { index, hostel ->
                         HostelCard(
                             hostel,
                             saved = hostel.id in state.savedIds,
                             onToggleSave = { viewModel.onSaveClick(hostel.id) },
+                            modifier = Modifier.entrance(hostel.id, index),
                         ) { onOpen(hostel.id) }
                     }
                 }
@@ -138,7 +139,7 @@ fun SavedHostelsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
 
     Scaffold(topBar = { ColFindTopBar("Saved hostels", onBack) }) { padding ->
         when {
-            state.loading -> LoadingBox(Modifier.padding(padding))
+            state.loading -> HostelListSkeleton(Modifier.padding(padding))
             state.error != null -> MessageBox(state.error.orEmpty(), Modifier.padding(padding), "Try again", viewModel::retry)
             state.hostels.isEmpty() -> MessageBox("Tap the heart on a hostel to save it here", Modifier.padding(padding))
             else -> LazyColumn(
@@ -146,8 +147,13 @@ fun SavedHostelsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(state.hostels, key = { it.id }) { hostel ->
-                    HostelCard(hostel, saved = true, onToggleSave = { viewModel.unsave(hostel.id) }) { onOpen(hostel.id) }
+                itemsIndexed(state.hostels, key = { _, it -> it.id }) { index, hostel ->
+                    HostelCard(
+                        hostel,
+                        saved = true,
+                        onToggleSave = { viewModel.unsave(hostel.id) },
+                        modifier = Modifier.entrance(hostel.id, index),
+                    ) { onOpen(hostel.id) }
                 }
             }
         }
@@ -156,8 +162,14 @@ fun SavedHostelsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun HostelCard(hostel: Hostel, saved: Boolean, onToggleSave: () -> Unit, onClick: () -> Unit) {
-    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+internal fun HostelCard(
+    hostel: Hostel,
+    saved: Boolean,
+    onToggleSave: () -> Unit,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    PressableCard(onClick = onClick, modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -178,16 +190,14 @@ internal fun HostelCard(hostel: Hostel, saved: Boolean, onToggleSave: () -> Unit
                 Text(
                     Validators.formatPrice(hostel.priceKes),
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = MaterialTheme.colorScheme.tertiary,
                 )
             }
-            IconButton(onClick = onToggleSave) {
-                Icon(
-                    if (saved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = if (saved) "Remove ${hostel.name} from saved" else "Save ${hostel.name}",
-                    tint = if (saved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            HeartToggle(
+                saved = saved,
+                onToggle = onToggleSave,
+                contentDescription = if (saved) "Remove ${hostel.name} from saved" else "Save ${hostel.name}",
+            )
         }
     }
 }
@@ -218,13 +228,11 @@ fun HostelDetailScreen(hostelId: String, onBack: () -> Unit, onLogin: () -> Unit
         topBar = {
             ColFindTopBar(hostel?.name ?: "Hostel", onBack) {
                 if (hostel != null) {
-                    IconButton(onClick = viewModel::onSaveClick) {
-                        Icon(
-                            if (state.isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = if (state.isSaved) "Remove from saved" else "Save this hostel",
-                            tint = if (state.isSaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    HeartToggle(
+                        saved = state.isSaved,
+                        onToggle = viewModel::onSaveClick,
+                        contentDescription = if (state.isSaved) "Remove from saved" else "Save this hostel",
+                    )
                 }
             }
         },
@@ -254,12 +262,12 @@ fun HostelDetailScreen(hostelId: String, onBack: () -> Unit, onLogin: () -> Unit
                     Text(
                         Validators.formatPrice(hostel.priceKes),
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = MaterialTheme.colorScheme.tertiary,
                     )
                     if (hostel.location.isNotEmpty()) Text(hostel.location, style = MaterialTheme.typography.bodyMedium)
                     Text(hostel.description, style = MaterialTheme.typography.bodyLarge)
                     if (hostel.contactPhone.isNotEmpty()) {
-                        Button(onClick = { dial(context, hostel.contactPhone) }, modifier = Modifier.fillMaxWidth()) {
+                        PrimaryButton(onClick = { dial(context, hostel.contactPhone) }, modifier = Modifier.fillMaxWidth()) {
                             Text("Call the landlord")
                         }
                     }
@@ -312,7 +320,7 @@ fun AddHostelScreen(onBack: () -> Unit, onDone: () -> Unit) {
                         .height(200.dp)
                         .clip(RoundedCornerShape(12.dp)),
                 )
-                OutlinedButton(
+                SecondaryButton(
                     onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                     enabled = !state.submitting,
                     modifier = Modifier.fillMaxWidth(),
@@ -347,7 +355,7 @@ fun AddHostelScreen(onBack: () -> Unit, onDone: () -> Unit) {
                     enabled = !state.submitting,
                 )
                 ErrorText(state.error)
-                Button(onClick = viewModel::submit, enabled = !state.submitting, modifier = Modifier.fillMaxWidth()) {
+                PrimaryButton(onClick = viewModel::submit, enabled = !state.submitting, modifier = Modifier.fillMaxWidth()) {
                     if (state.submitting) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) else Text("Publish hostel")
                 }
             }
