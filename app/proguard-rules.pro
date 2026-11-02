@@ -19,3 +19,6 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+# Firestore deserializes documents into these classes by reflection.
+-keepattributes Signature,*Annotation*
+-keepclassmembers class com.sydney.sydney.data.model.** { *; }
