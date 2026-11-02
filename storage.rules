@@ -1,0 +1,34 @@
+rules_version = '2';
+
+// Images only, 5 MB max. Student photos are private to signed-in users and writable by their
+// owner. Hostel photos are public and writable only by approved landlords.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function validImage() {
+      return request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    function isApprovedLandlord() {
+      return signedIn() &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.landlordStatus == 'approved';
+    }
+
+    match /students/{uid}/{fileName} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid && validImage();
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /hostels/{uid}/{fileName} {
+      allow read: if true;
+      allow write: if signedIn() && request.auth.uid == uid && isApprovedLandlord() && validImage();
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+  }
+}
