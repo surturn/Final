@@ -32,6 +32,9 @@ jobs:
       - name: Assemble debug APK
         run: ./gradlew assembleDebug --stacktrace
 
+      - name: Assemble release (checks that R8 shrinking keeps the app working)
+        run: ./gradlew assembleRelease --stacktrace
+
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4
