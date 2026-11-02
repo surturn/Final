@@ -1,0 +1,135 @@
+rules_version = '2';
+
+// ColFind security rules.
+//
+//   users/{uid}      private account record, readable only by its owner
+//   students/{uid}   public directory entry, readable by signed-in users, no phone or email
+//   hostels/{id}     public listings, written only by approved landlords
+//   admins/{uid}     marker documents created from the Firebase console only
+//
+// A user can ask to become a landlord (landlordStatus none -> pending) but only an
+// admin, working from the console or an admin tool, can move it to approved or rejected.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isApprovedLandlord() {
+      return signedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.landlordStatus == 'approved';
+    }
+
+    function text(value, minLength, maxLength) {
+      return value is string && value.size() >= minLength && value.size() <= maxLength;
+    }
+
+    function optionalText(data, field, maxLength) {
+      return !(field in data) || (data[field] is string && data[field].size() <= maxLength);
+    }
+
+    // ---------- users (private) ----------
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+
+      allow create: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(
+             ['displayName', 'email', 'campus', 'phone', 'location', 'landlordStatus', 'createdAt'])
+        && request.resource.data.keys().hasAll(['displayName', 'email', 'landlordStatus', 'createdAt'])
+        && text(request.resource.data.displayName, 2, 80)
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.landlordStatus in ['none', 'pending']
+        && optionalText(request.resource.data, 'campus', 80)
+        && optionalText(request.resource.data, 'phone', 20)
+        && optionalText(request.resource.data, 'location', 120);
+
+      allow update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(
+             ['displayName', 'email', 'campus', 'phone', 'location', 'landlordStatus', 'createdAt'])
+        && text(request.resource.data.displayName, 2, 80)
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.createdAt == resource.data.createdAt
+        && (request.resource.data.landlordStatus == resource.data.landlordStatus
+            || (resource.data.landlordStatus == 'none' && request.resource.data.landlordStatus == 'pending'))
+        && optionalText(request.resource.data, 'campus', 80)
+        && optionalText(request.resource.data, 'phone', 20)
+        && optionalText(request.resource.data, 'location', 120);
+
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['landlordStatus'])
+        && request.resource.data.landlordStatus in ['none', 'pending', 'approved', 'rejected'];
+
+      // Owners can delete their own record (in-app account deletion is a Google Play requirement).
+      allow delete: if isOwner(uid);
+    }
+
+    // ---------- students (directory) ----------
+    match /students/{uid} {
+      allow read: if signedIn();
+
+      allow create, update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(
+             ['displayName', 'campus', 'location', 'photoUrl', 'createdAt'])
+        && request.resource.data.keys().hasAll(['displayName', 'createdAt'])
+        && text(request.resource.data.displayName, 2, 80)
+        && optionalText(request.resource.data, 'campus', 80)
+        && optionalText(request.resource.data, 'location', 120)
+        && optionalText(request.resource.data, 'photoUrl', 2048);
+
+      allow delete: if isOwner(uid);
+    }
+
+    // ---------- hostels (public listings) ----------
+    match /hostels/{hostelId} {
+      allow read: if true;
+
+      allow create: if isApprovedLandlord()
+        && request.resource.data.keys().hasOnly(
+             ['name', 'description', 'priceKes', 'location', 'contactPhone', 'imageUrl', 'ownerId', 'createdAt'])
+        && request.resource.data.keys().hasAll(
+             ['name', 'description', 'priceKes', 'contactPhone', 'imageUrl', 'ownerId', 'createdAt'])
+        && request.resource.data.ownerId == request.auth.uid
+        && text(request.resource.data.name, 2, 100)
+        && text(request.resource.data.description, 10, 2000)
+        && request.resource.data.priceKes is number
+        && request.resource.data.priceKes > 0
+        && request.resource.data.priceKes <= 1000000
+        && text(request.resource.data.contactPhone, 10, 13)
+        && text(request.resource.data.imageUrl, 1, 2048)
+        && optionalText(request.resource.data, 'location', 120);
+
+      allow update: if isApprovedLandlord()
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.keys().hasOnly(
+             ['name', 'description', 'priceKes', 'location', 'contactPhone', 'imageUrl', 'ownerId', 'createdAt'])
+        && text(request.resource.data.name, 2, 100)
+        && text(request.resource.data.description, 10, 2000)
+        && request.resource.data.priceKes is number
+        && request.resource.data.priceKes > 0
+        && request.resource.data.priceKes <= 1000000
+        && text(request.resource.data.contactPhone, 10, 13)
+        && text(request.resource.data.imageUrl, 1, 2048)
+        && optionalText(request.resource.data, 'location', 120);
+
+      allow delete: if (signedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
+    }
+
+    // ---------- admins ----------
+    match /admins/{uid} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
+  }
+}
