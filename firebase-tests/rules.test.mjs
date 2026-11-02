@@ -9,13 +9,19 @@ import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, updateDoc } from "fire
 import { ref, uploadBytes } from "firebase/storage";
 
 const PROJECT_ID = "demo-colfind";
+
+/** Reads host and port from the variable `firebase emulators:exec` sets, so a busy default port does not break the run. */
+function emulator(envName, fallbackPort) {
+  const [host, port] = (process.env[envName] || `127.0.0.1:${fallbackPort}`).split(":");
+  return { host, port: Number(port) };
+}
 let env;
 
 before(async () => {
   env = await initializeTestEnvironment({
     projectId: PROJECT_ID,
-    firestore: { rules: readFileSync("../firestore.rules", "utf8"), host: "127.0.0.1", port: 8080 },
-    storage: { rules: readFileSync("../storage.rules", "utf8"), host: "127.0.0.1", port: 9199 },
+    firestore: { rules: readFileSync("../firestore.rules", "utf8"), ...emulator("FIRESTORE_EMULATOR_HOST", 8080) },
+    storage: { rules: readFileSync("../storage.rules", "utf8"), ...emulator("FIREBASE_STORAGE_EMULATOR_HOST", 9199) },
   });
 });
 
