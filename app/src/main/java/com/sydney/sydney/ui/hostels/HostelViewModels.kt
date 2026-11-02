@@ -9,6 +9,8 @@ import com.sydney.sydney.data.repo.AuthRepository
 import com.sydney.sydney.data.repo.HostelRepository
 import com.sydney.sydney.data.repo.Messages
 import com.sydney.sydney.data.repo.ProfileRepository
+import com.sydney.sydney.data.repo.RecentlyViewedStore
+import com.sydney.sydney.data.repo.SavedRepository
 import com.sydney.sydney.domain.Filters
 import com.sydney.sydney.domain.Validators
 import com.sydney.sydney.ui.util.Loadable
@@ -18,11 +20,26 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+
+/** Saved ids for whoever is signed in right now. Empty for a guest, and if the list cannot be read. */
+@OptIn(ExperimentalCoroutinesApi::class)
+private fun savedIdsFor(auth: AuthRepository, saved: SavedRepository) =
+    auth.authState.flatMapLatest { uid ->
+        if (uid == null) flowOf(emptySet()) else saved.observeSavedIds(uid).catch { emit(emptySet()) }
+    }
+
+/** Saves or unsaves for the signed-in user. Returns null, doing nothing, for a guest; otherwise whether the write worked. */
+private suspend fun toggleSaved(auth: AuthRepository, saved: SavedRepository, hostelId: String, nowSaved: Boolean): Boolean? {
+    val uid = auth.currentUserId ?: return null
+    return saved.setSaved(uid, hostelId, !nowSaved).isSuccess
+}
 
 data class HostelListUiState(
     val loading: Boolean = true,
@@ -30,15 +47,32 @@ data class HostelListUiState(
     val total: Int = 0,
     val query: String = "",
     val error: String? = null,
+    val signedIn: Boolean = false,
+    val savedIds: Set<String> = emptySet(),
+    /** True after a guest taps a save heart, so the screen can explain why signing in helps. */
+    val showSignInPrompt: Boolean = false,
+    val saveError: String? = null,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class HostelListViewModel(repository: HostelRepository) : ViewModel() {
+class HostelListViewModel(
+    repository: HostelRepository,
+    private val auth: AuthRepository,
+    private val saved: SavedRepository,
+) : ViewModel() {
     private val query = MutableStateFlow("")
     private val attempt = MutableStateFlow(0)
+    private val prompt = MutableStateFlow(false)
+    private val saveError = MutableStateFlow<String?>(null)
 
     val state: StateFlow<HostelListUiState> =
-        combine(attempt.flatMapLatest { repository.observeHostels().asLoadable() }, query) { loadable, q ->
+        combine(
+            attempt.flatMapLatest { repository.observeHostels().asLoadable() },
+            query,
+            savedIdsFor(auth, saved),
+            auth.authState,
+            combine(prompt, saveError) { p, e -> p to e },
+        ) { loadable, q, savedIds, uid, flags ->
             val all = loadable.items.orEmpty()
             HostelListUiState(
                 loading = loadable.loading,
@@ -46,6 +80,10 @@ class HostelListViewModel(repository: HostelRepository) : ViewModel() {
                 total = all.size,
                 query = q,
                 error = loadable.error,
+                signedIn = uid != null,
+                savedIds = savedIds,
+                showSignInPrompt = flags.first,
+                saveError = flags.second,
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HostelListUiState())
 
@@ -54,38 +92,114 @@ class HostelListViewModel(repository: HostelRepository) : ViewModel() {
     }
 
     fun retry() = attempt.update { it + 1 }
+
+    fun onSaveClick(hostelId: String) {
+        viewModelScope.launch {
+            val ok = toggleSaved(auth, saved, hostelId, hostelId in state.value.savedIds)
+            when (ok) {
+                null -> prompt.value = true
+                false -> saveError.value = Messages.GENERIC
+                true -> saveError.value = null
+            }
+        }
+    }
+
+    fun dismissPrompt() {
+        prompt.value = false
+    }
+
+    fun dismissSaveError() {
+        saveError.value = null
+    }
 }
 
 data class HostelDetailUiState(
     val loading: Boolean = true,
     val hostel: Hostel? = null,
     val error: String? = null,
+    val signedIn: Boolean = false,
+    val isSaved: Boolean = false,
+    val showSignInPrompt: Boolean = false,
+    val saveError: String? = null,
 )
 
 class HostelDetailViewModel(
     private val repository: HostelRepository,
     private val hostelId: String,
+    private val auth: AuthRepository,
+    private val saved: SavedRepository,
+    private val recent: RecentlyViewedStore,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(HostelDetailUiState())
+    private val _state = MutableStateFlow(HostelDetailUiState(signedIn = auth.currentUserId != null))
     val state: StateFlow<HostelDetailUiState> = _state.asStateFlow()
 
     init {
         load()
+        viewModelScope.launch {
+            savedIdsFor(auth, saved).combine(auth.authState) { ids, uid -> (hostelId in ids) to (uid != null) }
+                .collect { (isSaved, signedIn) -> _state.update { it.copy(isSaved = isSaved, signedIn = signedIn) } }
+        }
     }
 
     fun load() {
-        _state.value = HostelDetailUiState(loading = true)
+        _state.update { it.copy(loading = true, hostel = null, error = null) }
         viewModelScope.launch {
             repository.get(hostelId)
                 .onSuccess { hostel ->
-                    _state.value = HostelDetailUiState(
-                        loading = false,
-                        hostel = hostel,
-                        error = if (hostel == null) "This hostel is no longer listed" else null,
-                    )
+                    if (hostel != null) auth.currentUserId?.let { recent.record(it, hostelId) }
+                    _state.update {
+                        it.copy(
+                            loading = false,
+                            hostel = hostel,
+                            error = if (hostel == null) "This hostel is no longer listed" else null,
+                        )
+                    }
                 }
-                .onFailure { e -> _state.value = HostelDetailUiState(loading = false, error = e.message ?: Messages.GENERIC) }
+                .onFailure { e -> _state.update { it.copy(loading = false, error = e.message ?: Messages.GENERIC) } }
         }
+    }
+
+    fun onSaveClick() {
+        viewModelScope.launch {
+            when (toggleSaved(auth, saved, hostelId, _state.value.isSaved)) {
+                null -> _state.update { it.copy(showSignInPrompt = true) }
+                false -> _state.update { it.copy(saveError = Messages.GENERIC) }
+                true -> _state.update { it.copy(saveError = null) }
+            }
+        }
+    }
+
+    fun dismissPrompt() = _state.update { it.copy(showSignInPrompt = false) }
+}
+
+data class SavedUiState(
+    val loading: Boolean = true,
+    val hostels: List<Hostel> = emptyList(),
+    val error: String? = null,
+)
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class SavedViewModel(
+    hostels: HostelRepository,
+    private val auth: AuthRepository,
+    private val saved: SavedRepository,
+) : ViewModel() {
+    private val attempt = MutableStateFlow(0)
+
+    val state: StateFlow<SavedUiState> =
+        combine(attempt.flatMapLatest { hostels.observeHostels().asLoadable() }, savedIdsFor(auth, saved)) { loadable, ids ->
+            SavedUiState(
+                loading = loadable.loading,
+                hostels = loadable.items.orEmpty().filter { it.id in ids },
+                error = loadable.error,
+            )
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SavedUiState())
+
+    fun retry() = attempt.update { it + 1 }
+
+    fun unsave(hostelId: String) {
+        val uid = auth.currentUserId ?: return
+        viewModelScope.launch { saved.setSaved(uid, hostelId, false) }
     }
 }
 

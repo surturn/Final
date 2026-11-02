@@ -3,6 +3,8 @@ package com.sydney.sydney.ui
 import com.sydney.sydney.FakeAuth
 import com.sydney.sydney.FakeHostels
 import com.sydney.sydney.FakeProfiles
+import com.sydney.sydney.FakeRecent
+import com.sydney.sydney.FakeSaved
 import com.sydney.sydney.FakeStudents
 import com.sydney.sydney.MainDispatcherRule
 import com.sydney.sydney.data.model.LandlordStatus
@@ -31,14 +33,14 @@ class FeatureViewModelsTest {
     // ---- home ----
     @Test fun homeLoadsTheProfileOfTheSignedInUser() {
         val profiles = FakeProfiles().apply { store["u1"] = profile("u1") }
-        val vm = HomeViewModel(FakeAuth("u1"), profiles)
+        val vm = HomeViewModel(FakeAuth("u1"), profiles, FakeHostels(), FakeRecent())
         assertEquals("Amina Otieno", vm.state.value.profile?.displayName)
         assertEquals(false, vm.state.value.loading)
     }
 
     @Test fun homeClearsTheProfileOnSignOut() {
         val auth = FakeAuth("u1")
-        val vm = HomeViewModel(auth, FakeProfiles().apply { store["u1"] = profile("u1") })
+        val vm = HomeViewModel(auth, FakeProfiles().apply { store["u1"] = profile("u1") }, FakeHostels(), FakeRecent())
         vm.signOut()
         assertNull(vm.state.value.uid)
         assertNull(vm.state.value.profile)
@@ -47,7 +49,7 @@ class FeatureViewModelsTest {
     @Test fun homeDoesNotShowTheOldProfileToANewAccount() {
         val auth = FakeAuth("u1")
         val profiles = FakeProfiles().apply { store["u1"] = profile("u1") }
-        val vm = HomeViewModel(auth, profiles)
+        val vm = HomeViewModel(auth, profiles, FakeHostels(), FakeRecent())
         auth.setUser("u2")
         assertNull(vm.state.value.profile)
         assertEquals("u2", vm.state.value.uid)
@@ -58,25 +60,25 @@ class FeatureViewModelsTest {
             store["u1"] = profile("u1")
             store["u2"] = profile("u2", LandlordStatus.APPROVED)
         }
-        val first = HomeViewModel(FakeAuth("u1"), profiles)
+        val first = HomeViewModel(FakeAuth("u1"), profiles, FakeHostels(), FakeRecent())
         first.applyForLandlord()
         assertEquals(LandlordStatus.PENDING, first.state.value.profile?.landlordStatus)
         assertEquals(1, profiles.applied)
 
-        val approved = HomeViewModel(FakeAuth("u2"), profiles)
+        val approved = HomeViewModel(FakeAuth("u2"), profiles, FakeHostels(), FakeRecent())
         approved.applyForLandlord()
         assertEquals(1, profiles.applied)
     }
 
     @Test fun homeReportsALoadFailure() {
         val profiles = FakeProfiles().apply { failGet = "No connection" }
-        val vm = HomeViewModel(FakeAuth("u1"), profiles)
+        val vm = HomeViewModel(FakeAuth("u1"), profiles, FakeHostels(), FakeRecent())
         assertEquals("No connection", vm.state.value.error)
     }
 
     // ---- hostels ----
     @Test fun hostelListFiltersBySearch() = runTest {
-        val vm = HostelListViewModel(FakeHostels(listOf(hostel("1", "Sunrise"), hostel("2", "Moonlight"))))
+        val vm = HostelListViewModel(FakeHostels(listOf(hostel("1", "Sunrise"), hostel("2", "Moonlight"))), FakeAuth(), FakeSaved())
         assertEquals(2, vm.state.first { !it.loading }.hostels.size)
         vm.onQuery("moon")
         val filtered = vm.state.first { it.query == "moon" }
@@ -86,7 +88,7 @@ class FeatureViewModelsTest {
 
     @Test fun hostelListShowsErrorsAndRecoversOnRetry() = runTest {
         val repo = FakeHostels(listOf(hostel("1"))).apply { failWith = "No connection" }
-        val vm = HostelListViewModel(repo)
+        val vm = HostelListViewModel(repo, FakeAuth(), FakeSaved())
         assertEquals("No connection", vm.state.first { it.error != null }.error)
         repo.failWith = null
         vm.retry()
@@ -94,10 +96,10 @@ class FeatureViewModelsTest {
     }
 
     @Test fun hostelDetailReportsAMissingListing() {
-        val vm = HostelDetailViewModel(FakeHostels(listOf(hostel("1"))), "gone")
+        val vm = HostelDetailViewModel(FakeHostels(listOf(hostel("1"))), "gone", FakeAuth(), FakeSaved(), FakeRecent())
         assertNull(vm.state.value.hostel)
         assertEquals("This hostel is no longer listed", vm.state.value.error)
-        assertEquals("1", HostelDetailViewModel(FakeHostels(listOf(hostel("1"))), "1").state.value.hostel?.id)
+        assertEquals("1", HostelDetailViewModel(FakeHostels(listOf(hostel("1"))), "1", FakeAuth(), FakeSaved(), FakeRecent()).state.value.hostel?.id)
     }
 
     private fun addVm(status: LandlordStatus, hostels: FakeHostels = FakeHostels()): AddHostelViewModel {

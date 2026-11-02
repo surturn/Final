@@ -18,7 +18,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -49,6 +52,8 @@ import com.sydney.sydney.domain.Validators
 import com.sydney.sydney.ui.components.ColFindTopBar
 import com.sydney.sydney.ui.components.ErrorText
 import com.sydney.sydney.ui.components.FormField
+import com.sydney.sydney.ui.components.GuestBanner
+import com.sydney.sydney.ui.components.SignInPromptDialog
 import com.sydney.sydney.ui.components.LoadingBox
 import com.sydney.sydney.ui.components.MessageBox
 import com.sydney.sydney.ui.components.RemoteImage
@@ -57,13 +62,36 @@ import com.sydney.sydney.ui.util.viewModelFactory
 import androidx.compose.foundation.text.KeyboardOptions
 
 @Composable
-fun HostelListScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
+fun HostelListScreen(
+    onBack: () -> Unit,
+    onOpen: (String) -> Unit,
+    onLogin: () -> Unit,
+    onRegister: () -> Unit,
+) {
     val container = LocalContext.current.container
-    val viewModel: HostelListViewModel = viewModel(factory = viewModelFactory { HostelListViewModel(container.hostels) })
+    val viewModel: HostelListViewModel = viewModel(
+        factory = viewModelFactory { HostelListViewModel(container.hostels, container.auth, container.saved) },
+    )
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    if (state.showSignInPrompt) {
+        SignInPromptDialog(
+            message = "Create a free account to save hostels and find them again later.",
+            onLogin = onLogin,
+            onRegister = onRegister,
+            onDismiss = viewModel::dismissPrompt,
+        )
+    }
 
     Scaffold(topBar = { ColFindTopBar("Hostels", onBack) }) { padding ->
         Column(Modifier.padding(padding)) {
+            if (!state.signedIn) {
+                GuestBanner(
+                    "Log in to save hostels and see more",
+                    onLogin,
+                    Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+            }
             OutlinedTextField(
                 value = state.query,
                 onValueChange = viewModel::onQuery,
@@ -85,7 +113,41 @@ fun HostelListScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(state.hostels, key = { it.id }) { hostel -> HostelCard(hostel) { onOpen(hostel.id) } }
+                    items(state.hostels, key = { it.id }) { hostel ->
+                        HostelCard(
+                            hostel,
+                            saved = hostel.id in state.savedIds,
+                            onToggleSave = { viewModel.onSaveClick(hostel.id) },
+                        ) { onOpen(hostel.id) }
+                    }
+                }
+            }
+            ErrorText(state.saveError)
+        }
+    }
+}
+
+/** The hostels the signed-in user saved. Needs an account, so the nav host guards the route. */
+@Composable
+fun SavedHostelsScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
+    val container = LocalContext.current.container
+    val viewModel: SavedViewModel = viewModel(
+        factory = viewModelFactory { SavedViewModel(container.hostels, container.auth, container.saved) },
+    )
+    val state by viewModel.state.collectAsStateWithLifecycle()
+
+    Scaffold(topBar = { ColFindTopBar("Saved hostels", onBack) }) { padding ->
+        when {
+            state.loading -> LoadingBox(Modifier.padding(padding))
+            state.error != null -> MessageBox(state.error.orEmpty(), Modifier.padding(padding), "Try again", viewModel::retry)
+            state.hostels.isEmpty() -> MessageBox("Tap the heart on a hostel to save it here", Modifier.padding(padding))
+            else -> LazyColumn(
+                modifier = Modifier.padding(padding),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                items(state.hostels, key = { it.id }) { hostel ->
+                    HostelCard(hostel, saved = true, onToggleSave = { viewModel.unsave(hostel.id) }) { onOpen(hostel.id) }
                 }
             }
         }
@@ -94,7 +156,7 @@ fun HostelListScreen(onBack: () -> Unit, onOpen: (String) -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HostelCard(hostel: Hostel, onClick: () -> Unit) {
+internal fun HostelCard(hostel: Hostel, saved: Boolean, onToggleSave: () -> Unit, onClick: () -> Unit) {
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -108,7 +170,7 @@ private fun HostelCard(hostel: Hostel, onClick: () -> Unit) {
                     .size(96.dp)
                     .clip(RoundedCornerShape(12.dp)),
             )
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
                 Text(hostel.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 if (hostel.location.isNotEmpty()) {
                     Text(hostel.location, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -119,22 +181,54 @@ private fun HostelCard(hostel: Hostel, onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
+            IconButton(onClick = onToggleSave) {
+                Icon(
+                    if (saved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = if (saved) "Remove ${hostel.name} from saved" else "Save ${hostel.name}",
+                    tint = if (saved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
 
 @Composable
-fun HostelDetailScreen(hostelId: String, onBack: () -> Unit) {
+fun HostelDetailScreen(hostelId: String, onBack: () -> Unit, onLogin: () -> Unit, onRegister: () -> Unit) {
     val context = LocalContext.current
     val container = context.container
     val viewModel: HostelDetailViewModel = viewModel(
         key = hostelId,
-        factory = viewModelFactory { HostelDetailViewModel(container.hostels, hostelId) },
+        factory = viewModelFactory {
+            HostelDetailViewModel(container.hostels, hostelId, container.auth, container.saved, container.recent)
+        },
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
     val hostel = state.hostel
 
-    Scaffold(topBar = { ColFindTopBar(hostel?.name ?: "Hostel", onBack) }) { padding ->
+    if (state.showSignInPrompt) {
+        SignInPromptDialog(
+            message = "Create a free account to save hostels and find them again later.",
+            onLogin = onLogin,
+            onRegister = onRegister,
+            onDismiss = viewModel::dismissPrompt,
+        )
+    }
+
+    Scaffold(
+        topBar = {
+            ColFindTopBar(hostel?.name ?: "Hostel", onBack) {
+                if (hostel != null) {
+                    IconButton(onClick = viewModel::onSaveClick) {
+                        Icon(
+                            if (state.isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = if (state.isSaved) "Remove from saved" else "Save this hostel",
+                            tint = if (state.isSaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        },
+    ) { padding ->
         when {
             state.loading -> LoadingBox(Modifier.padding(padding))
             hostel == null -> MessageBox(
@@ -169,6 +263,7 @@ fun HostelDetailScreen(hostelId: String, onBack: () -> Unit) {
                             Text("Call the landlord")
                         }
                     }
+                    ErrorText(state.saveError)
                 }
             }
         }

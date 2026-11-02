@@ -17,6 +17,7 @@ import kotlin.coroutines.cancellation.CancellationException
 internal const val USERS = "users"
 internal const val STUDENTS = "students"
 internal const val HOSTELS = "hostels"
+internal const val SAVED = "saved"
 
 /** Runs [block] and turns any failure into a [Result] carrying a user-readable [AppException]. */
 internal suspend fun <T> firebaseCall(block: suspend () -> T): Result<T> =

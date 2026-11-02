@@ -1,5 +1,13 @@
 package com.sydney.sydney.ui.home
 
+import com.sydney.sydney.ui.components.RemoteImage
+import com.sydney.sydney.domain.Validators
+import com.sydney.sydney.data.model.Hostel
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -60,6 +68,8 @@ class HomeActions(
     val onStudents: () -> Unit,
     val onProfile: () -> Unit,
     val onAddHostel: () -> Unit,
+    val onSaved: () -> Unit,
+    val onOpenHostel: (String) -> Unit,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,7 +78,7 @@ fun HomeScreen(actions: HomeActions) {
     val context = LocalContext.current
     val container = context.container
     val viewModel: HomeViewModel = viewModel(
-        factory = viewModelFactory { HomeViewModel(container.auth, container.profiles) },
+        factory = viewModelFactory { HomeViewModel(container.auth, container.profiles, container.hostels, container.recent) },
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
     val supportPhone = stringResource(R.string.support_phone)
@@ -120,6 +130,22 @@ fun HomeScreen(actions: HomeActions) {
             }
 
             if (signedIn) {
+                if (state.profileIncomplete) {
+                    item {
+                        MenuCard(
+                            Icons.Default.AccountCircle,
+                            "Complete your profile",
+                            "Add your campus, phone and area so landlords and students can reach you",
+                            actions.onProfile,
+                        )
+                    }
+                }
+                item {
+                    MenuCard(Icons.Default.Favorite, "Saved hostels", "Hostels you have hearted", actions.onSaved)
+                }
+                if (state.recent.isNotEmpty()) {
+                    item { RecentRow(state.recent, actions.onOpenHostel) }
+                }
                 item {
                     MenuCard(Icons.Default.Person, "Student directory", "Find other students", actions.onStudents)
                 }
@@ -140,6 +166,37 @@ fun HomeScreen(actions: HomeActions) {
 
             item {
                 TextButton(onClick = { dial(context, supportPhone) }) { Text("Need help? Call support") }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RecentRow(recent: List<Hostel>, onOpen: (String) -> Unit) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Recently viewed", style = MaterialTheme.typography.titleMedium)
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            items(recent, key = { it.id }) { hostel ->
+                Card(onClick = { onOpen(hostel.id) }, modifier = Modifier.width(160.dp)) {
+                    Column {
+                        RemoteImage(
+                            url = hostel.imageUrl,
+                            contentDescription = hostel.name,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(96.dp),
+                        )
+                        Column(Modifier.padding(8.dp)) {
+                            Text(hostel.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(
+                                Validators.formatPrice(hostel.priceKes),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                }
             }
         }
     }

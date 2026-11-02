@@ -16,6 +16,7 @@ import com.sydney.sydney.data.repo.AuthRepository
 import com.sydney.sydney.data.repo.HostelRepository
 import com.sydney.sydney.data.repo.Messages
 import com.sydney.sydney.data.repo.ProfileRepository
+import com.sydney.sydney.data.repo.SavedRepository
 import com.sydney.sydney.data.repo.StudentRepository
 import com.sydney.sydney.domain.Validators
 import java.util.UUID
@@ -27,6 +28,7 @@ import kotlinx.coroutines.tasks.await
 
 private const val DIRECTORY_LIMIT = 500L
 private const val HOSTEL_LIMIT = 50L
+private const val SAVED_LIMIT = 200L
 
 class FirebaseAuthRepository(private val auth: FirebaseAuth) : AuthRepository {
 
@@ -158,7 +160,10 @@ class FirestoreProfileRepository(
             listing.getString("imageUrl")?.takeIf { it.isNotEmpty() }?.let { deleteQuietly(it) }
         }
         val photo = db.collection(STUDENTS).document(uid).get().await().getString("photoUrl").orEmpty()
+        // Subcollections are not removed with their parent, so clear the saved list explicitly.
+        val saved = db.collection(USERS).document(uid).collection(SAVED).limit(SAVED_LIMIT).get().await()
         val batch = db.batch()
+        for (doc in saved.documents) batch.delete(doc.reference)
         batch.delete(db.collection(STUDENTS).document(uid))
         batch.delete(db.collection(USERS).document(uid))
         batch.commit().await()
@@ -248,5 +253,27 @@ class FirestoreHostelRepository(
             throw e
         }
         document.id
+    }
+}
+
+class FirestoreSavedRepository(private val db: FirebaseFirestore) : SavedRepository {
+
+    private fun saved(uid: String) = db.collection(USERS).document(uid).collection(SAVED)
+
+    override fun observeSavedIds(uid: String): Flow<Set<String>> = callbackFlow {
+        val registration = saved(uid).limit(SAVED_LIMIT).addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                close(error.toAppException())
+                return@addSnapshotListener
+            }
+            trySend(snapshot?.documents?.map { it.id }?.toSet().orEmpty())
+        }
+        awaitClose { registration.remove() }
+    }
+
+    override suspend fun setSaved(uid: String, hostelId: String, saved: Boolean): Result<Unit> = firebaseCall {
+        val ref = saved(uid).document(hostelId)
+        if (saved) ref.set(mapOf("createdAt" to System.currentTimeMillis())).await() else ref.delete().await()
+        Unit
     }
 }

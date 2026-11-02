@@ -19,6 +19,7 @@ import com.sydney.sydney.ui.home.HomeScreen
 import com.sydney.sydney.ui.hostels.AddHostelScreen
 import com.sydney.sydney.ui.hostels.HostelDetailScreen
 import com.sydney.sydney.ui.hostels.HostelListScreen
+import com.sydney.sydney.ui.hostels.SavedHostelsScreen
 import com.sydney.sydney.ui.profile.ProfileScreen
 import com.sydney.sydney.ui.students.StudentsScreen
 
@@ -51,6 +52,8 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
                     onHostels = { navController.navigate(ROUTE_HOSTELS) },
                     onStudents = { navController.navigate(ROUTE_STUDENTS) },
                     onProfile = { navController.navigate(ROUTE_PROFILE) },
+                    onSaved = { navController.navigate(ROUTE_SAVED) },
+                    onOpenHostel = { id -> navController.navigate("$ROUTE_HOSTEL/$id") },
                     onAddHostel = { navController.navigate(ROUTE_ADD_HOSTEL) },
                 ),
             )
@@ -59,26 +62,36 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
             LoginScreen(
                 onBack = { navController.popBackStack() },
                 onRegister = { navController.navigate(ROUTE_REGISTER) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
-                onSuccess = backToHome,
+                onSuccess = { navController.popBackStack() },
             )
         }
         composable(ROUTE_REGISTER) {
             RegisterScreen(
                 onBack = { navController.popBackStack() },
                 onLogin = { navController.navigate(ROUTE_LOGIN) { popUpTo(ROUTE_REGISTER) { inclusive = true } } },
-                onSuccess = backToHome,
+                onSuccess = { navController.popBackStack() },
             )
         }
         composable(ROUTE_HOSTELS) {
             HostelListScreen(
                 onBack = { navController.popBackStack() },
                 onOpen = { id -> navController.navigate("$ROUTE_HOSTEL/$id") },
+                onLogin = { navController.navigate(ROUTE_LOGIN) },
+                onRegister = { navController.navigate(ROUTE_REGISTER) },
             )
         }
         composable("$ROUTE_HOSTEL/{$ARG_HOSTEL_ID}") { entry ->
             HostelDetailScreen(
                 hostelId = entry.arguments?.getString(ARG_HOSTEL_ID).orEmpty(),
                 onBack = { navController.popBackStack() },
+                onLogin = { navController.navigate(ROUTE_LOGIN) },
+                onRegister = { navController.navigate(ROUTE_REGISTER) },
+            )
+        }
+        composable(ROUTE_SAVED) {
+            SavedHostelsScreen(
+                onBack = { navController.popBackStack() },
+                onOpen = { id -> navController.navigate("$ROUTE_HOSTEL/$id") },
             )
         }
         composable(ROUTE_ADD_HOSTEL) {

@@ -9,6 +9,8 @@ import com.sydney.sydney.data.repo.AppException
 import com.sydney.sydney.data.repo.AuthRepository
 import com.sydney.sydney.data.repo.HostelRepository
 import com.sydney.sydney.data.repo.ProfileRepository
+import com.sydney.sydney.data.repo.RecentlyViewedStore
+import com.sydney.sydney.data.repo.SavedRepository
 import com.sydney.sydney.data.repo.StudentRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -152,3 +154,29 @@ fun student(uid: String, name: String, campus: String = "MMU", location: String 
 
 fun profile(uid: String = "u1", status: LandlordStatus = LandlordStatus.NONE, phone: String = "") =
     UserProfile(uid, "Amina Otieno", "amina@example.com", "MMU", phone, "Rongai", status, 1L)
+
+class FakeSaved : SavedRepository {
+    private val store = MutableStateFlow<Map<String, Set<String>>>(emptyMap())
+    var failWrite: String? = null
+
+    override fun observeSavedIds(uid: String): Flow<Set<String>> = flow {
+        store.collect { emit(it[uid].orEmpty()) }
+    }
+
+    override suspend fun setSaved(uid: String, hostelId: String, saved: Boolean): Result<Unit> {
+        failWrite?.let { return Result.failure(AppException(it)) }
+        val current = store.value[uid].orEmpty()
+        store.value = store.value + (uid to if (saved) current + hostelId else current - hostelId)
+        return Result.success(Unit)
+    }
+
+    fun idsFor(uid: String): Set<String> = store.value[uid].orEmpty()
+}
+
+class FakeRecent : RecentlyViewedStore {
+    private val map = mutableMapOf<String, List<String>>()
+    override fun ids(uid: String): List<String> = map[uid].orEmpty()
+    override fun record(uid: String, hostelId: String) {
+        map[uid] = (listOf(hostelId) + ids(uid).filter { it != hostelId }).take(5)
+    }
+}

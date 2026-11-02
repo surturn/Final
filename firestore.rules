@@ -71,6 +71,15 @@ service cloud.firestore {
 
       // Owners can delete their own record (in-app account deletion is a Google Play requirement).
       allow delete: if isOwner(uid);
+
+      // Hostels the user saved. Document id is the hostel id. Private to the owner.
+      match /saved/{hostelId} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(['createdAt'])
+          && request.resource.data.createdAt is number;
+        allow delete: if isOwner(uid);
+      }
     }
 
     // ---------- students (directory) ----------

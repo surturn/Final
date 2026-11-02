@@ -59,3 +59,18 @@ interface HostelRepository {
     /** Uploads the photo first, then writes the listing, so a failed upload leaves no orphan. */
     suspend fun add(ownerId: String, hostel: NewHostel): Result<String>
 }
+
+/** Hostels a signed-in user has saved (users/{uid}/saved/{hostelId}). Guests have no saved list. */
+interface SavedRepository {
+    /** Emits the ids of the user's saved hostels now and on every change. */
+    fun observeSavedIds(uid: String): Flow<Set<String>>
+
+    suspend fun setSaved(uid: String, hostelId: String, saved: Boolean): Result<Unit>
+}
+
+/** Device-local list of the hostels a user opened most recently, newest first. */
+interface RecentlyViewedStore {
+    fun ids(uid: String): List<String>
+
+    fun record(uid: String, hostelId: String)
+}

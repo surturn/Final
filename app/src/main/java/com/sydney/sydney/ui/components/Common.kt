@@ -10,7 +10,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -116,5 +121,44 @@ fun ErrorText(message: String?, modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.bodyMedium,
             modifier = modifier.fillMaxWidth(),
         )
+    }
+}
+
+/** Explains what signing in unlocks. Shown only after a guest taps something that needs an account. */
+@Composable
+fun SignInPromptDialog(
+    message: String,
+    onLogin: () -> Unit,
+    onRegister: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Sign in to continue") },
+        text = { Text(message) },
+        confirmButton = { Button(onClick = { onDismiss(); onLogin() }) { Text("Log in") } },
+        dismissButton = {
+            Row {
+                TextButton(onClick = onDismiss) { Text("Not now") }
+                TextButton(onClick = { onDismiss(); onRegister() }) { Text("Register") }
+            }
+        },
+    )
+}
+
+/** A slim, non-blocking nudge at the top of a list for guests. */
+@Composable
+fun GuestBanner(message: String, onLogin: () -> Unit, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(message, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            TextButton(onClick = onLogin) { Text("Log in") }
+        }
     }
 }

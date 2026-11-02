@@ -173,6 +173,38 @@ describe("hostels", () => {
   });
 });
 
+describe("saved hostels", () => {
+  const saved = (uid) => `users/${uid}/saved/h1`;
+
+  it("lets a user save and unsave a hostel in their own list", async () => {
+    const db = as("student").firestore();
+    await assertSucceeds(setDoc(doc(db, saved("student")), { createdAt: 5 }));
+    await assertSucceeds(getDoc(doc(db, saved("student"))));
+    await assertSucceeds(deleteDoc(doc(db, saved("student"))));
+  });
+
+  it("keeps saved lists private", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), saved("student")), { createdAt: 5 });
+    });
+    await assertFails(getDoc(doc(as("mallory").firestore(), saved("student"))));
+    await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), saved("student"))));
+    await assertFails(setDoc(doc(as("mallory").firestore(), saved("student")), { createdAt: 5 }));
+    await assertFails(deleteDoc(doc(as("mallory").firestore(), saved("student"))));
+  });
+
+  it("blocks guests from saving", async () => {
+    const guest = env.unauthenticatedContext().firestore();
+    await assertFails(setDoc(doc(guest, saved("student")), { createdAt: 5 }));
+  });
+
+  it("rejects extra fields and a non-numeric timestamp", async () => {
+    const db = as("student").firestore();
+    await assertFails(setDoc(doc(db, saved("student")), { createdAt: 5, note: "x" }));
+    await assertFails(setDoc(doc(db, saved("student")), { createdAt: "now" }));
+  });
+});
+
 describe("storage", () => {
   const png = new Uint8Array([137, 80, 78, 71]);
   const image = { contentType: "image/png" };
