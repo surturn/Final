@@ -23,6 +23,7 @@ Raise `versionCode` in `app/build.gradle.kts` for every upload.
 
 ### Before the build
 - [ ] CI is green on the release branch (lint, unit tests, debug and release builds, rules tests)
+- [ ] The Firebase project is on the **Blaze** plan. Cloud Storage no longer works on the free Spark plan (uploads return HTTP 402), so hostel and profile photos fail until it is upgraded. Set a budget alert at the same time
 - [ ] `targetSdk` meets the current Play requirement (API 36 or higher for new apps and updates since 31 August 2026)
 - [ ] Firestore and Storage rules are deployed from this commit (`firebase deploy --only firestore:rules,firestore:indexes,storage`)
 - [ ] At least one admin document exists in `admins/`
