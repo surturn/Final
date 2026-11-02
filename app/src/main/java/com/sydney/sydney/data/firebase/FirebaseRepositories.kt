@@ -1,5 +1,6 @@
 package com.sydney.sydney.data.firebase
 
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -50,6 +51,18 @@ class FirebaseAuthRepository(private val auth: FirebaseAuth) : AuthRepository {
     }
 
     override fun signOut() = auth.signOut()
+
+    override suspend fun reauthenticate(password: String): Result<Unit> = firebaseCall {
+        val user = auth.currentUser ?: throw AppException(Messages.SIGN_IN_AGAIN)
+        val email = user.email ?: throw AppException(Messages.GENERIC)
+        user.reauthenticate(EmailAuthProvider.getCredential(email, password)).await()
+        Unit
+    }
+
+    override suspend fun deleteAccount(): Result<Unit> = firebaseCall {
+        (auth.currentUser ?: throw AppException(Messages.SIGN_IN_AGAIN)).delete().await()
+        Unit
+    }
 }
 
 class FirestoreProfileRepository(
@@ -135,6 +148,21 @@ class FirestoreProfileRepository(
     override suspend fun applyForLandlord(uid: String): Result<Unit> = firebaseCall {
         db.collection(USERS).document(uid).update("landlordStatus", "pending").await()
         Unit
+    }
+
+    override suspend fun deleteAllData(uid: String): Result<Unit> = firebaseCall {
+        // Listings first, so a failure part way leaves the profile in place and the user can retry.
+        val owned = db.collection(HOSTELS).whereEqualTo("ownerId", uid).get().await()
+        for (listing in owned.documents) {
+            listing.reference.delete().await()
+            listing.getString("imageUrl")?.takeIf { it.isNotEmpty() }?.let { deleteQuietly(it) }
+        }
+        val photo = db.collection(STUDENTS).document(uid).get().await().getString("photoUrl").orEmpty()
+        val batch = db.batch()
+        batch.delete(db.collection(STUDENTS).document(uid))
+        batch.delete(db.collection(USERS).document(uid))
+        batch.commit().await()
+        if (photo.isNotEmpty()) deleteQuietly(photo)
     }
 
     private suspend fun upload(path: String, bytes: ByteArray): String {

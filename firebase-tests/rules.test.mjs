@@ -62,6 +62,11 @@ describe("users", () => {
     await assertSucceeds(setDoc(doc(db, "users/new"), user("new@example.com", "pending")));
   });
 
+  it("lets a user delete their own record but nobody else's", async () => {
+    await assertFails(deleteDoc(doc(as("student").firestore(), "users/pending")));
+    await assertSucceeds(deleteDoc(doc(as("student").firestore(), "users/student")));
+  });
+
   it("rejects creating a record that is already approved", async () => {
     const db = as("new").firestore();
     await assertFails(setDoc(doc(db, "users/new"), user("new@example.com", "approved")));

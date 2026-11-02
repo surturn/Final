@@ -34,6 +34,8 @@ data class ProfileUiState(
     val error: String? = null,
     val message: String? = null,
     val applying: Boolean = false,
+    val deleting: Boolean = false,
+    val deleted: Boolean = false,
 )
 
 class ProfileViewModel(
@@ -164,6 +166,32 @@ class ProfileViewModel(
                     }
                 }
                 .onFailure { e -> _state.update { it.copy(applying = false, error = e.message ?: Messages.GENERIC) } }
+        }
+    }
+
+    /** Deletes the account for good: confirm the password, remove the data, then remove the sign in. */
+    fun deleteAccount(password: String) {
+        val uid = auth.currentUserId ?: return
+        if (_state.value.deleting) return
+        if (password.isEmpty()) {
+            _state.update { it.copy(error = "Enter your password to confirm") }
+            return
+        }
+        _state.update { it.copy(deleting = true, error = null) }
+        viewModelScope.launch {
+            val steps: List<suspend () -> Result<Unit>> = listOf(
+                { auth.reauthenticate(password) },
+                { profiles.deleteAllData(uid) },
+                { auth.deleteAccount() },
+            )
+            for (step in steps) {
+                val failure = step().exceptionOrNull()
+                if (failure != null) {
+                    _state.update { it.copy(deleting = false, error = failure.message ?: Messages.GENERIC) }
+                    return@launch
+                }
+            }
+            _state.update { it.copy(deleting = false, deleted = true) }
         }
     }
 }

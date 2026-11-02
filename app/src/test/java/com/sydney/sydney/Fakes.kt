@@ -33,6 +33,9 @@ class FakeAuth(uid: String? = null, override var currentEmail: String? = null) :
     var signInResult: Result<String> = Result.success("u1")
     var signUpResult: Result<String> = Result.success("u1")
     var signInCalls = 0
+    var reauthResult: Result<Unit> = Result.success(Unit)
+    var deleteResult: Result<Unit> = Result.success(Unit)
+    var accountDeleted = false
 
     override val currentUserId: String? get() = uidFlow.value
     override val authState: Flow<String?> = uidFlow
@@ -52,6 +55,16 @@ class FakeAuth(uid: String? = null, override var currentEmail: String? = null) :
         uidFlow.value = null
     }
 
+    override suspend fun reauthenticate(password: String): Result<Unit> = reauthResult
+
+    override suspend fun deleteAccount(): Result<Unit> {
+        deleteResult.onSuccess {
+            accountDeleted = true
+            uidFlow.value = null
+        }
+        return deleteResult
+    }
+
     fun setUser(uid: String?) {
         uidFlow.value = uid
     }
@@ -66,6 +79,8 @@ class FakeProfiles : ProfileRepository {
     var updated: UserProfile? = null
     var updatedPhoto: String? = null
     var applied = 0
+    var deletedUid: String? = null
+    var failDelete: String? = null
 
     override suspend fun get(uid: String): Result<UserProfile?> =
         failGet?.let { Result.failure(AppException(it)) } ?: Result.success(store[uid])
@@ -85,6 +100,13 @@ class FakeProfiles : ProfileRepository {
     }
 
     override suspend fun photoUrl(uid: String): Result<String> = Result.success(photo)
+
+    override suspend fun deleteAllData(uid: String): Result<Unit> {
+        failDelete?.let { return Result.failure(AppException(it)) }
+        deletedUid = uid
+        store.remove(uid)
+        return Result.success(Unit)
+    }
 
     override suspend fun applyForLandlord(uid: String): Result<Unit> {
         applied++

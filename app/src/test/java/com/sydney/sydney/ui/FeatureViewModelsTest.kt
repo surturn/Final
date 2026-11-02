@@ -6,6 +6,7 @@ import com.sydney.sydney.FakeProfiles
 import com.sydney.sydney.FakeStudents
 import com.sydney.sydney.MainDispatcherRule
 import com.sydney.sydney.data.model.LandlordStatus
+import com.sydney.sydney.data.repo.AppException
 import com.sydney.sydney.hostel
 import com.sydney.sydney.profile
 import com.sydney.sydney.student
@@ -189,5 +190,42 @@ class FeatureViewModelsTest {
         assertEquals("0712345678", profiles.updated?.phone)
         assertEquals("content://photo/2", profiles.updatedPhoto)
         assertEquals("Profile saved", vm.state.value.message)
+    }
+
+    @Test fun deleteAccountNeedsThePasswordFirst() {
+        val auth = FakeAuth("u1")
+        val vm = ProfileViewModel(auth, FakeProfiles().apply { store["u1"] = profile("u1") })
+        vm.deleteAccount("")
+        assertEquals("Enter your password to confirm", vm.state.value.error)
+        assertEquals(false, auth.accountDeleted)
+    }
+
+    @Test fun deleteAccountStopsAtAWrongPasswordAndKeepsTheData() {
+        val auth = FakeAuth("u1").apply { reauthResult = Result.failure(AppException("Incorrect email or password")) }
+        val profiles = FakeProfiles().apply { store["u1"] = profile("u1") }
+        val vm = ProfileViewModel(auth, profiles)
+        vm.deleteAccount("wrong")
+        assertEquals("Incorrect email or password", vm.state.value.error)
+        assertNull(profiles.deletedUid)
+        assertEquals(false, vm.state.value.deleted)
+    }
+
+    @Test fun deleteAccountKeepsTheSignInWhenDataRemovalFails() {
+        val auth = FakeAuth("u1")
+        val profiles = FakeProfiles().apply { store["u1"] = profile("u1"); failDelete = "No connection" }
+        val vm = ProfileViewModel(auth, profiles)
+        vm.deleteAccount("secret123")
+        assertEquals("No connection", vm.state.value.error)
+        assertEquals(false, auth.accountDeleted)
+    }
+
+    @Test fun deleteAccountRemovesDataThenTheSignIn() {
+        val auth = FakeAuth("u1")
+        val profiles = FakeProfiles().apply { store["u1"] = profile("u1") }
+        val vm = ProfileViewModel(auth, profiles)
+        vm.deleteAccount("secret123")
+        assertEquals("u1", profiles.deletedUid)
+        assertTrue(auth.accountDeleted)
+        assertTrue(vm.state.value.deleted)
     }
 }

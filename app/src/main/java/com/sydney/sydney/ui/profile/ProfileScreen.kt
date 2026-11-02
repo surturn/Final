@@ -25,7 +25,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,7 +49,7 @@ import com.sydney.sydney.ui.components.RemoteImage
 import com.sydney.sydney.ui.util.viewModelFactory
 
 @Composable
-fun ProfileScreen(onBack: () -> Unit) {
+fun ProfileScreen(onBack: () -> Unit, onDeleted: () -> Unit) {
     val container = LocalContext.current.container
     val viewModel: ProfileViewModel = viewModel(
         factory = viewModelFactory { ProfileViewModel(container.auth, container.profiles) },
@@ -55,6 +59,11 @@ fun ProfileScreen(onBack: () -> Unit) {
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) viewModel.onPhoto(uri.toString())
     }
+
+    var confirmDelete by remember { mutableStateOf(false) }
+    var deletePassword by remember { mutableStateOf("") }
+
+    LaunchedEffect(state.deleted) { if (state.deleted) onDeleted() }
 
     LaunchedEffect(state.message) {
         state.message?.let {
@@ -131,6 +140,41 @@ fun ProfileScreen(onBack: () -> Unit) {
                     LandlordStatus.REJECTED -> Text("Landlord request: not approved", style = MaterialTheme.typography.bodyMedium)
                 }
             }
+
+            TextButton(onClick = { confirmDelete = true }, enabled = !state.saving && !state.deleting) {
+                Text("Delete my account", color = MaterialTheme.colorScheme.error)
+            }
         }
+    }
+
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { if (!state.deleting) confirmDelete = false },
+            title = { Text("Delete your account?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("This permanently removes your profile, photo and any hostels you listed. It cannot be undone.")
+                    FormField(
+                        value = deletePassword,
+                        onValueChange = { deletePassword = it },
+                        label = "Password",
+                        password = true,
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done,
+                        enabled = !state.deleting,
+                    )
+                    ErrorText(state.error)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.deleteAccount(deletePassword) }, enabled = !state.deleting) {
+                    if (state.deleting) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                    else Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDelete = false }, enabled = !state.deleting) { Text("Cancel") }
+            },
+        )
     }
 }

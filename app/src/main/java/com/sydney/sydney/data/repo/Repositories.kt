@@ -20,6 +20,12 @@ interface AuthRepository {
     suspend fun signUp(email: String, password: String): Result<String>
 
     fun signOut()
+
+    /** Confirms the password again. Firebase requires a recent sign in before deleting an account. */
+    suspend fun reauthenticate(password: String): Result<Unit>
+
+    /** Deletes the sign in itself. Call [ProfileRepository.deleteAllData] first. */
+    suspend fun deleteAccount(): Result<Unit>
 }
 
 interface ProfileRepository {
@@ -36,6 +42,9 @@ interface ProfileRepository {
 
     /** Moves landlordStatus from none to pending. An admin approves it from the console. */
     suspend fun applyForLandlord(uid: String): Result<Unit>
+
+    /** Removes the profile, directory entry, photo and any hostels listed by this user. Safe to retry. */
+    suspend fun deleteAllData(uid: String): Result<Unit>
 }
 
 interface StudentRepository {

@@ -69,7 +69,8 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['landlordStatus'])
         && request.resource.data.landlordStatus in ['none', 'pending', 'approved', 'rejected'];
 
-      allow delete: if false;
+      // Owners can delete their own record (in-app account deletion is a Google Play requirement).
+      allow delete: if isOwner(uid);
     }
 
     // ---------- students (directory) ----------

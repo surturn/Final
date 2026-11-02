@@ -88,6 +88,8 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
             )
         }
         composable(ROUTE_STUDENTS) { StudentsScreen(onBack = { navController.popBackStack() }) }
-        composable(ROUTE_PROFILE) { ProfileScreen(onBack = { navController.popBackStack() }) }
+        composable(ROUTE_PROFILE) {
+            ProfileScreen(onBack = { navController.popBackStack() }, onDeleted = backToHome)
+        }
     }
 }
