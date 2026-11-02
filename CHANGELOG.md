@@ -5,7 +5,7 @@
 First release candidate. A full rewrite of the original student project.
 
 ### Security
-- Added Firestore and Storage security rules with tests. Before, all data was open to the app's anyone.
+- Added Firestore and Storage security rules with tests. The repository had none, so access control depended on whatever happened to be set in the console.
 - Phone numbers and emails are no longer stored in the public directory. Private details live in `users/{uid}`, readable only by their owner.
 - Landlords must be approved by an admin before they can publish hostels. Users cannot approve themselves.
 - Removed the contacts and storage permissions the app never used and turned off Android backup of local data.
